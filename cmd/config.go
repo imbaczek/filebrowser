@@ -99,7 +99,7 @@ func getProxyAuth(flags *pflag.FlagSet, defaultAuther map[string]interface{}) (a
 		return nil, err
 	}
 
-	if header == ""  && defaultAuther != nil {
+	if header == "" && defaultAuther != nil {
 		header = defaultAuther["header"].(string)
 	}
 
@@ -227,6 +227,8 @@ func printSettings(ser *settings.Server, set *settings.Settings, auther auth.Aut
 	fmt.Fprintf(w, "\tToken Expiration Time:\t%s\n", ser.TokenExpirationTime)
 	fmt.Fprintf(w, "\tExec Enabled:\t%t\n", ser.EnableExec)
 	fmt.Fprintf(w, "\tThumbnails Enabled:\t%t\n", ser.EnableThumbnails)
+	fmt.Fprintf(w, "\tThumbnail Max Source Image Width:\t%d\n", ser.ThumbnailMaxSourceImageWidth)
+	fmt.Fprintf(w, "\tThumbnail Max Source Image Height:\t%d\n", ser.ThumbnailMaxSourceImageHeight)
 	fmt.Fprintf(w, "\tResize Preview:\t%t\n", ser.ResizePreview)
 	fmt.Fprintf(w, "\tType Detection by Header:\t%t\n", ser.TypeDetectionByHeader)
 
@@ -312,6 +314,27 @@ func getSettings(flags *pflag.FlagSet, set *settings.Settings, ser *settings.Ser
 		case "disableImageResolutionCalc":
 			ser.ImageResolutionCal, err = flags.GetBool(flag.Name)
 			ser.ImageResolutionCal = !ser.ImageResolutionCal
+		case "thumbnailMaxSourceImageSize":
+			if all && !flag.Changed {
+				break
+			}
+			var max uint
+			max, err = flags.GetUint(flag.Name)
+			if err == nil {
+				ser.ThumbnailMaxSourceImageSize = max
+				ser.ThumbnailMaxSourceImageWidth = max
+				ser.ThumbnailMaxSourceImageHeight = max
+			}
+		case "thumbnailMaxSourceImageWidth":
+			if all && !flag.Changed {
+				break
+			}
+			ser.ThumbnailMaxSourceImageWidth, err = flags.GetUint(flag.Name)
+		case "thumbnailMaxSourceImageHeight":
+			if all && !flag.Changed {
+				break
+			}
+			ser.ThumbnailMaxSourceImageHeight, err = flags.GetUint(flag.Name)
 
 		// Settings flags from [addConfigFlags]
 		case "signup":
@@ -373,6 +396,20 @@ func getSettings(flags *pflag.FlagSet, set *settings.Settings, ser *settings.Ser
 	err = getUserDefaults(flags, &set.Defaults, all)
 	if err != nil {
 		return nil, err
+	}
+
+	if all {
+		if ser.ThumbnailMaxSourceImageWidth == 0 {
+			ser.ThumbnailMaxSourceImageWidth = settings.DefaultThumbnailMaxSourceImageWidth
+		}
+		if ser.ThumbnailMaxSourceImageHeight == 0 {
+			ser.ThumbnailMaxSourceImageHeight = settings.DefaultThumbnailMaxSourceImageHeight
+		}
+		if ser.ThumbnailMaxSourceImageWidth == ser.ThumbnailMaxSourceImageHeight {
+			ser.ThumbnailMaxSourceImageSize = ser.ThumbnailMaxSourceImageWidth
+		} else {
+			ser.ThumbnailMaxSourceImageSize = 0
+		}
 	}
 
 	if all {

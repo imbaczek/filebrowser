@@ -4,6 +4,8 @@ interface ISettings {
   hideLoginButton: boolean;
   minimumPasswordLength: number;
   userHomeBasePath: string;
+  thumbnailMaxSourceImageWidth: number;
+  thumbnailMaxSourceImageHeight: number;
   defaults: SettingsDefaults;
   authMethod: string;
   rules: any[];

@@ -15,6 +15,9 @@ const DefaultLogoutPage = "/login"
 const DefaultMinimumPasswordLength = 12
 const DefaultFileMode = 0640
 const DefaultDirMode = 0750
+const DefaultThumbnailMaxSourceImageSize = 10000
+const DefaultThumbnailMaxSourceImageWidth = 10000
+const DefaultThumbnailMaxSourceImageHeight = 10000
 
 // AuthMethod describes an authentication method.
 type AuthMethod string
@@ -60,8 +63,13 @@ type Server struct {
 	EnableExec            bool   `json:"enableExec"`
 	TypeDetectionByHeader bool   `json:"typeDetectionByHeader"`
 	ImageResolutionCal    bool   `json:"imageResolutionCalculation"`
-	AuthHook              string `json:"authHook"`
-	TokenExpirationTime   string `json:"tokenExpirationTime"`
+	// ThumbnailMaxSourceImageSize is a legacy setting kept for backwards compatibility.
+	// Prefer using ThumbnailMaxSourceImageWidth/ThumbnailMaxSourceImageHeight.
+	ThumbnailMaxSourceImageSize   uint   `json:"thumbnailMaxSourceImageSize"`
+	ThumbnailMaxSourceImageWidth  uint   `json:"thumbnailMaxSourceImageWidth"`
+	ThumbnailMaxSourceImageHeight uint   `json:"thumbnailMaxSourceImageHeight"`
+	AuthHook                      string `json:"authHook"`
+	TokenExpirationTime           string `json:"tokenExpirationTime"`
 }
 
 // Clean cleans any variables that might need cleaning.

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"sync/atomic"
 
 	"github.com/disintegration/imaging"
 	"github.com/dsoprea/go-exif/v3"
@@ -22,21 +23,72 @@ var ErrUnsupportedFormat = errors.New("unsupported image format")
 // ErrImageTooLarge means the image is too large to create a thumbnail.
 var ErrImageTooLarge = errors.New("image too large for thumbnail generation")
 
-// Maximum dimensions for thumbnail generation to prevent server crashes
-const (
-	MaxImageWidth  = 10000
-	MaxImageHeight = 10000
-)
+// DefaultMaxSourceImageSize is the legacy default maximum image dimension (width/height) that will be decoded for thumbnail generation.
+const DefaultMaxSourceImageSize = 10000
+
+const DefaultMaxSourceImageWidth = 10000
+const DefaultMaxSourceImageHeight = 10000
 
 // Service
 type Service struct {
-	sem semaphore.Semaphore
+	sem                semaphore.Semaphore
+	maxSourceImgWidth  atomic.Int64
+	maxSourceImgHeight atomic.Int64
 }
 
 func New(workers int) *Service {
-	return &Service{
+	s := &Service{
 		sem: semaphore.New(workers),
 	}
+	s.maxSourceImgWidth.Store(DefaultMaxSourceImageWidth)
+	s.maxSourceImgHeight.Store(DefaultMaxSourceImageHeight)
+	return s
+}
+
+// SetMaxSourceImageSize sets the maximum source image dimension (width/height) allowed for thumbnail generation.
+// A value of 0 resets it to DefaultMaxSourceImageSize.
+func (s *Service) SetMaxSourceImageSize(max uint) {
+	s.SetMaxSourceImageDimensions(max, max)
+}
+
+// SetMaxSourceImageDimensions sets the maximum source image width/height allowed for thumbnail generation.
+// A value of 0 resets the respective dimension to its default.
+func (s *Service) SetMaxSourceImageDimensions(maxW, maxH uint) {
+	s.maxSourceImgWidth.Store(int64(s.sanitizeMaxDim(maxW, DefaultMaxSourceImageWidth)))
+	s.maxSourceImgHeight.Store(int64(s.sanitizeMaxDim(maxH, DefaultMaxSourceImageHeight)))
+}
+
+func (s *Service) sanitizeMaxDim(v uint, def int) int {
+	if v == 0 {
+		return def
+	}
+	maxInt := int(^uint(0) >> 1)
+	if uint64(v) > uint64(maxInt) {
+		return def
+	}
+	return int(v)
+}
+
+func (s *Service) maxSourceImageDimensions() (int, int) {
+	maxW := s.maxSourceImgWidth.Load()
+	maxH := s.maxSourceImgHeight.Load()
+
+	if maxW <= 0 {
+		maxW = DefaultMaxSourceImageWidth
+	}
+	if maxH <= 0 {
+		maxH = DefaultMaxSourceImageHeight
+	}
+
+	maxInt := int64(^uint(0) >> 1)
+	if maxW > maxInt {
+		maxW = maxInt
+	}
+	if maxH > maxInt {
+		maxH = maxInt
+	}
+
+	return int(maxW), int(maxH)
 }
 
 // Format is an image file format.
@@ -202,9 +254,10 @@ func (s *Service) detectFormat(in io.Reader) (Format, io.Reader, error) {
 	}
 
 	// Check if image dimensions exceed maximum allowed size
-	if imgConfig.Width > MaxImageWidth || imgConfig.Height > MaxImageHeight {
+	maxW, maxH := s.maxSourceImageDimensions()
+	if imgConfig.Width > maxW || imgConfig.Height > maxH {
 		return 0, nil, fmt.Errorf("image dimensions %dx%d exceed maximum %dx%d: %w",
-			imgConfig.Width, imgConfig.Height, MaxImageWidth, MaxImageHeight, ErrImageTooLarge)
+			imgConfig.Width, imgConfig.Height, maxW, maxH, ErrImageTooLarge)
 	}
 
 	format, err := ParseFormat(imgFormat)

@@ -109,6 +109,9 @@ func addServerFlags(flags *pflag.FlagSet) {
 	flags.Bool("disableExec", true, "disables Command Runner feature")
 	flags.Bool("disableTypeDetectionByHeader", false, "disables type detection by reading file headers")
 	flags.Bool("disableImageResolutionCalc", false, "disables image resolution calculation by reading image files")
+	flags.Uint("thumbnailMaxSourceImageSize", settings.DefaultThumbnailMaxSourceImageSize, "maximum source image dimension (px) allowed for thumbnail generation (legacy; sets both width and height)")
+	flags.Uint("thumbnailMaxSourceImageWidth", settings.DefaultThumbnailMaxSourceImageWidth, "maximum source image width (px) allowed for thumbnail generation")
+	flags.Uint("thumbnailMaxSourceImageHeight", settings.DefaultThumbnailMaxSourceImageHeight, "maximum source image height (px) allowed for thumbnail generation")
 }
 
 var rootCmd = &cobra.Command{
@@ -180,6 +183,7 @@ user created with the credentials from options "username" and "password".`,
 		if err != nil {
 			return err
 		}
+		imageService.SetMaxSourceImageDimensions(server.ThumbnailMaxSourceImageWidth, server.ThumbnailMaxSourceImageHeight)
 		setupLog(server.Log)
 
 		root, err := filepath.Abs(server.Root)
@@ -345,6 +349,38 @@ func getServerSettings(v *viper.Viper, st *storage.Storage) (*settings.Server, e
 		server.EnableExec = !v.GetBool("disableExec")
 	}
 
+	if v.IsSet("thumbnailMaxSourceImageSize") {
+		max := v.GetUint("thumbnailMaxSourceImageSize")
+		if max == 0 {
+			max = settings.DefaultThumbnailMaxSourceImageSize
+		}
+		server.ThumbnailMaxSourceImageSize = max
+		server.ThumbnailMaxSourceImageWidth = max
+		server.ThumbnailMaxSourceImageHeight = max
+	}
+
+	if v.IsSet("thumbnailMaxSourceImageWidth") {
+		max := v.GetUint("thumbnailMaxSourceImageWidth")
+		if max == 0 {
+			max = settings.DefaultThumbnailMaxSourceImageWidth
+		}
+		server.ThumbnailMaxSourceImageWidth = max
+	}
+
+	if v.IsSet("thumbnailMaxSourceImageHeight") {
+		max := v.GetUint("thumbnailMaxSourceImageHeight")
+		if max == 0 {
+			max = settings.DefaultThumbnailMaxSourceImageHeight
+		}
+		server.ThumbnailMaxSourceImageHeight = max
+	}
+
+	if server.ThumbnailMaxSourceImageWidth == server.ThumbnailMaxSourceImageHeight {
+		server.ThumbnailMaxSourceImageSize = server.ThumbnailMaxSourceImageWidth
+	} else {
+		server.ThumbnailMaxSourceImageSize = 0
+	}
+
 	if isAddrSet && isSocketSet {
 		return nil, errors.New("--socket flag cannot be used with --address, --port, --key nor --cert")
 	}
@@ -438,19 +474,37 @@ func quickSetup(v *viper.Viper, s *storage.Storage) error {
 	}
 
 	ser := &settings.Server{
-		BaseURL:               v.GetString("baseURL"),
-		Port:                  v.GetString("port"),
-		Log:                   v.GetString("log"),
-		TLSKey:                v.GetString("key"),
-		TLSCert:               v.GetString("cert"),
-		Address:               v.GetString("address"),
-		Root:                  v.GetString("root"),
-		TokenExpirationTime:   v.GetString("tokenExpirationTime"),
-		EnableThumbnails:      !v.GetBool("disableThumbnails"),
-		ResizePreview:         !v.GetBool("disablePreviewResize"),
-		EnableExec:            !v.GetBool("disableExec"),
-		TypeDetectionByHeader: !v.GetBool("disableTypeDetectionByHeader"),
-		ImageResolutionCal:    !v.GetBool("disableImageResolutionCalc"),
+		BaseURL:                       v.GetString("baseURL"),
+		Port:                          v.GetString("port"),
+		Log:                           v.GetString("log"),
+		TLSKey:                        v.GetString("key"),
+		TLSCert:                       v.GetString("cert"),
+		Address:                       v.GetString("address"),
+		Root:                          v.GetString("root"),
+		TokenExpirationTime:           v.GetString("tokenExpirationTime"),
+		EnableThumbnails:              !v.GetBool("disableThumbnails"),
+		ResizePreview:                 !v.GetBool("disablePreviewResize"),
+		EnableExec:                    !v.GetBool("disableExec"),
+		TypeDetectionByHeader:         !v.GetBool("disableTypeDetectionByHeader"),
+		ImageResolutionCal:            !v.GetBool("disableImageResolutionCalc"),
+		ThumbnailMaxSourceImageSize:   v.GetUint("thumbnailMaxSourceImageSize"),
+		ThumbnailMaxSourceImageWidth:  v.GetUint("thumbnailMaxSourceImageWidth"),
+		ThumbnailMaxSourceImageHeight: v.GetUint("thumbnailMaxSourceImageHeight"),
+	}
+	if v.IsSet("thumbnailMaxSourceImageSize") {
+		ser.ThumbnailMaxSourceImageWidth = ser.ThumbnailMaxSourceImageSize
+		ser.ThumbnailMaxSourceImageHeight = ser.ThumbnailMaxSourceImageSize
+	}
+	if ser.ThumbnailMaxSourceImageWidth == 0 {
+		ser.ThumbnailMaxSourceImageWidth = settings.DefaultThumbnailMaxSourceImageWidth
+	}
+	if ser.ThumbnailMaxSourceImageHeight == 0 {
+		ser.ThumbnailMaxSourceImageHeight = settings.DefaultThumbnailMaxSourceImageHeight
+	}
+	if ser.ThumbnailMaxSourceImageWidth == ser.ThumbnailMaxSourceImageHeight {
+		ser.ThumbnailMaxSourceImageSize = ser.ThumbnailMaxSourceImageWidth
+	} else {
+		ser.ThumbnailMaxSourceImageSize = 0
 	}
 
 	err = s.Settings.SaveServer(ser)

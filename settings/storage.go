@@ -119,7 +119,30 @@ func (s *Storage) Save(set *Settings) error {
 
 // GetServer wraps StorageBackend.GetServer.
 func (s *Storage) GetServer() (*Server, error) {
-	return s.back.GetServer()
+	ser, err := s.back.GetServer()
+	if err != nil {
+		return nil, err
+	}
+
+	if ser.ThumbnailMaxSourceImageWidth == 0 && ser.ThumbnailMaxSourceImageHeight == 0 && ser.ThumbnailMaxSourceImageSize != 0 {
+		ser.ThumbnailMaxSourceImageWidth = ser.ThumbnailMaxSourceImageSize
+		ser.ThumbnailMaxSourceImageHeight = ser.ThumbnailMaxSourceImageSize
+	}
+
+	if ser.ThumbnailMaxSourceImageWidth == 0 {
+		ser.ThumbnailMaxSourceImageWidth = DefaultThumbnailMaxSourceImageWidth
+	}
+	if ser.ThumbnailMaxSourceImageHeight == 0 {
+		ser.ThumbnailMaxSourceImageHeight = DefaultThumbnailMaxSourceImageHeight
+	}
+
+	if ser.ThumbnailMaxSourceImageWidth == ser.ThumbnailMaxSourceImageHeight {
+		ser.ThumbnailMaxSourceImageSize = ser.ThumbnailMaxSourceImageWidth
+	} else {
+		ser.ThumbnailMaxSourceImageSize = 0
+	}
+
+	return ser, nil
 }
 
 // SaveServer wraps StorageBackend.SaveServer and adds some verification.

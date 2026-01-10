@@ -44,6 +44,33 @@
             />
           </p>
 
+          <p>
+            <label for="thumbnailMaxSourceImageWidth">{{
+              t("settings.thumbnailMaxSourceImageWidth")
+            }}</label>
+            <vue-number-input
+              controls
+              v-model.number="settings.thumbnailMaxSourceImageWidth"
+              id="thumbnailMaxSourceImageWidth"
+              :min="1"
+            />
+          </p>
+
+          <p>
+            <label for="thumbnailMaxSourceImageHeight">{{
+              t("settings.thumbnailMaxSourceImageHeight")
+            }}</label>
+            <vue-number-input
+              controls
+              v-model.number="settings.thumbnailMaxSourceImageHeight"
+              id="thumbnailMaxSourceImageHeight"
+              :min="1"
+            />
+            <span class="small">{{
+              t("settings.thumbnailMaxSourceImageWarning")
+            }}</span>
+          </p>
+
           <h3>{{ t("settings.rules") }}</h3>
           <p class="small">{{ t("settings.globalRules") }}</p>
           <rules v-model:rules="settings.rules" />
